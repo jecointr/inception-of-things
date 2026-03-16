@@ -1,0 +1,74 @@
+global:
+  edition: ce
+  hosts:
+    domain: 192.168.56.120.nip.io
+    https: false
+  ingress:
+    class: traefik
+    configureCertmanager: false
+    tls:
+      enabled: false
+  certmanager:
+    enabled: false
+  minio:
+    enabled: false
+  appConfig:
+    artifacts:
+      enabled: false
+    lfs:
+      enabled: false
+    uploads:
+      enabled: false
+    packages:
+      enabled: false
+
+certmanager:
+  enabled: false
+
+nginx-ingress:
+  enabled: false
+
+prometheus:
+  enabled: false
+
+gitlab-runner:
+  install: false
+
+registry:
+  enabled: false
+
+gitlab:
+  toolbox:
+    enabled: false
+  gitlab-exporter:
+    enabled: false
+  webservice:
+    minReplicas: 1
+    maxReplicas: 1
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 2Gi
+  sidekiq:
+    pods:
+      - name: all-in-1
+        minReplicas: 1
+        maxReplicas: 1
+        resources:
+          requests:
+            cpu: 50m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+  kas:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi

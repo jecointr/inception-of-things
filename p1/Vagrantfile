@@ -1,0 +1,84 @@
+ # Configure la version de l'API Vagrant utilisée (2 est la version moderne)
+ Vagrant.configure("2") do |config|
+  # Remplace TON_LOGIN par ton login (ex: wil)
+  # Cette variable permet d'utiliser le même login pour nommer les deux VM
+  # IMPORTANT: le nom d'hôte ne doit contenir que des lettres, chiffres, traits d'union ou points.
+  # J'ai réglé la valeur sur 'asekmani' (valide) — modifie-la si tu veux un autre login.
+  LOGIN = "asekmani"
+  # Token partagé server/worker pour automatiser l'adhésion de l'agent au cluster.
+  # Le token est lu depuis `confs/token` pour éviter de le garder en dur ici.
+  token_file = File.join(__dir__, "confs", "token")
+  unless File.exist?(token_file)
+    raise "Missing token file: #{token_file}. Create it (ex: p1/confs/token)."
+  end
+  K3S_TOKEN = File.read(token_file).strip
+  if K3S_TOKEN.empty?
+    raise "Token file is empty: #{token_file}. Put a non-empty token in it."
+  end
+
+  # Nom de la box Vagrant utilisée (image VM). Ici Debian 13
+  config.vm.box = "bento/debian-13"
+  config.vm.box_check_update = false
+  config.vm.boot_timeout = 600
+  config.ssh.insert_key = false
+  # Désactive le dossier partagé automatique pour éviter les permissions surprises
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+  # Copie depuis l'hôte le fichier ssh_authorized_keys vers la VM avant le provisioning
+  # (utilisé ensuite par le script de provisioning pour autoriser ta clé SSH)
+  config.vm.provision "file", source: "ssh_authorized_keys", destination: "/tmp/ssh_authorized_keys"
+
+  # Définition de la première machine: Server (controleur)
+  config.vm.define "#{LOGIN}S" do |server|
+    # Définit le nom d'hôte à l'intérieur de la VM (affiché par 'hostname')
+    server.vm.hostname = "#{LOGIN}S"
+    # Configure une interface réseau privée avec une IP statique
+    server.vm.network "private_network", ip: "192.168.56.110"
+    # Configuration spécifique au provider VirtualBox
+    server.vm.provider "virtualbox" do |vb|
+	vb.linked_clone = true
+      # Nom visible dans VirtualBox
+      vb.name = "#{LOGIN}S"
+      # Mémoire RAM allouée (en MB)
+      vb.memory = 1024
+      # Nombre de CPU virtuels
+      vb.cpus = 1
+    end
+    # Ajoute un provisioning shell qui exécutera le script local 'scripts/setup_ssh.sh'
+    # 'privileged: true' exécute le script avec les droits root
+    server.vm.provision "shell", path: "scripts/setup_ssh.sh", privileged: true
+    # Installe K3s en mode server automatiquement lors de 'vagrant up'
+    server.vm.provision "shell",
+      path: "scripts/install_k3s_server.sh",
+      privileged: true,
+      env: {
+        "K3S_TOKEN" => K3S_TOKEN,
+        "K3S_NODE_IP" => "192.168.56.110"
+      }
+  end
+
+  # Définition de la seconde machine: ServerWorker (agent)
+  config.vm.define "#{LOGIN}SW" do |worker|
+    # Nom d'hôte de la VM
+    worker.vm.hostname = "#{LOGIN}SW"
+    # IP statique pour le worker
+    worker.vm.network "private_network", ip: "192.168.56.111"
+    # Paramètres VirtualBox pour le worker
+    worker.vm.provider "virtualbox" do |vb|
+      vb.name = "#{LOGIN}SW"
+      vb.linked_clone = true
+      vb.memory = 1024
+      vb.cpus = 1
+    end
+    # Provisioning identique pour préparer l'accès SSH sur le worker
+    worker.vm.provision "shell", path: "scripts/setup_ssh.sh", privileged: true
+    # Installe K3s en mode agent automatiquement lors de 'vagrant up'
+    worker.vm.provision "shell",
+      path: "scripts/install_k3s_agent.sh",
+      privileged: true,
+      env: {
+        "K3S_URL" => "https://192.168.56.110:6443",
+        "K3S_TOKEN" => K3S_TOKEN,
+        "K3S_NODE_IP" => "192.168.56.111"
+      }
+  end
+end

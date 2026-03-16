@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: iot-funny-ingress
+  namespace: dev
+spec:
+  ingressClassName: traefik
+  rules:
+  - host: funny.192.168.56.120.nip.io
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: iot-funny
+            port:
+              number: 80

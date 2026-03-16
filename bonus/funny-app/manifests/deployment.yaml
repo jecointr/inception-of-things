@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: iot-funny
+  namespace: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: iot-funny
+  template:
+    metadata:
+      labels:
+        app: iot-funny
+    spec:
+      containers:
+      - name: iot-funny
+        image: __IMAGE__
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
